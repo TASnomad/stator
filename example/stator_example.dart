@@ -1,3 +1,4 @@
+import 'dart:async';
 import "dart:convert";
 import "dart:io";
 
@@ -22,13 +23,20 @@ Future<HttpResponse> testEcho(HttpRequest req, Map<String, String> params) async
 Future<void> main() async {
   var server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
 
+  unawaited(ProcessSignal.sigint.watch().first.then((_) async {
+    print("Shutting down the server");
+    await server.close();
+  }));
+
   Routes routes = {
     "/": test,
   };
 
-  print("Server running on port 8080");
+  RequestHandler engine = router(routes);
+
+  print("Server running on port ${server.port}");
   await server.forEach((request) async {
-    HttpResponse res = await router(routes)(request);
+    HttpResponse res = await engine(request);
 
     await res.flush();
     await res.close();
