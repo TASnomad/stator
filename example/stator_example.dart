@@ -4,8 +4,10 @@ import "dart:io";
 import "package:stator/stator.dart";
 
 Future<HttpResponse> test(HttpRequest req, Map<String, String> params) async {
-  req.response.write(jsonEncode({ "test": "hello" }));
-  req.headers.set(HttpHeaders.contentTypeHeader, ContentType.json);
+  String body = jsonEncode({ "test": "hello" });
+  req.response.headers.add(HttpHeaders.contentTypeHeader, ContentType.json.mimeType);
+  req.response.headers.add(HttpHeaders.contentLengthHeader, body.length);
+  req.response.write(body);
   return req.response;
 }
 
@@ -21,7 +23,7 @@ Future<void> main() async {
   var server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
 
   Routes routes = {
-    "GET@/": test,
+    "/": test,
   };
 
   print("Server running on port 8080");
