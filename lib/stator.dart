@@ -3,6 +3,8 @@
 /// More dartdocs go here.
 library stator;
 
+export "src/http_context.dart";
 export "src/router.dart";
+export "src/utils.dart";
 
 // TODO(TASnomad): Export any libraries intended for clients of this package.
