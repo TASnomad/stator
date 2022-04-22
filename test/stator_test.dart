@@ -4,22 +4,16 @@ import "dart:io";
 import "package:stator/stator.dart";
 import "package:test/test.dart";
 
-Future<HttpResponse> dummyHandler(HttpRequest req, Map<String, String> params) async {
-  req.response.write(jsonEncode({ "success": true }));
-  await req.response.close();
-  return req.response;
-}
-
 void main() {
-  group('A group of tests', () {
-    final Routes routes = { "GET@/": dummyHandler };
-    final RequestHandler handler = router(routes);
+  group("Utils: patchMatcher", () {
 
     setUp(() {
       // Additional setup goes here.
     });
 
-    test("Handle registered route", () {
+    test("Simple route matches", () {
+      expect(pathMatcher("/test", "/test"), equals({}), reason: "matches exact path");
+      expect(pathMatcher("/test/:id", "/test/42"), equals({ "id": "42" }), reason: "matches path with route parameter");
     });
   });
 }
