@@ -1,9 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
+import "dart:async";
+import "dart:convert";
+import "dart:io";
+import "dart:typed_data";
 
-import 'package:stator/src/content_types.dart';
+import "package:stator/stator.dart";
 
 class HttpContext extends Stream<Uint8List> implements HttpRequest {
   HttpRequest req;
