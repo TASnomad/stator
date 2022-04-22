@@ -1,22 +1,23 @@
 import 'dart:async';
 import "dart:io";
 
-import 'package:stator/src/url_pattern.dart';
+import 'package:stator/src/http_context.dart';
+import 'package:stator/stator.dart';
 
 final List<String> httpMethods = const [ "HEAD", "OPTIONS", "GET", "PUT", "PATCH", "POST", "DELETE" ];
 
 /// A Dartt compatible request handler which can be either async
 /// and gets passed the `HttpRequest`, it then eventually returns a `Future<HttpResponse>`
-typedef RequestHandler = Future<HttpResponse> Function(HttpRequest request);
+typedef RequestHandler = Future<HttpContext> Function(HttpContext ctx);
 
 /// A handler type for anytime the `MatchHandler` or `other` parameter handler fails
-typedef ErrorHandler = Future<HttpResponse> Function(HttpRequest request, Exception error);
+typedef ErrorHandler = Future<HttpContext> Function(HttpContext ctx, Exception error);
 
 /// A handler type for anytime a method is received that is not defined
-typedef UnknownMethodHandler = Future<HttpResponse> Function(HttpRequest request, List<String> knownMethods);
+typedef UnknownMethodHandler = Future<HttpContext> Function(HttpContext ctx, List<String> knownMethods);
 
 /// A handler type for a router path which get passed the matched values
-typedef MatchHandler = Future<HttpResponse> Function(HttpRequest request, Map<String, String> match);
+typedef MatchHandler = Future<HttpContext> Function(HttpContext ctx, Map<String, String> match);
 
 /// A record of route paths and `MatchHandler`s which are called when a match is
 /// found along with it's value
@@ -26,37 +27,20 @@ typedef MatchHandler = Future<HttpResponse> Function(HttpRequest request, Map<St
 typedef Routes = Map<String, MatchHandler>;
 
 /// Default Not found error
-Future<HttpResponse> defaultNotFoundError(HttpRequest request) async {
-  request.response.statusCode = HttpStatus.notFound;
-  request.response.contentLength = 0;
-
-  await request.response.flush();
-  // await request.response.close();
-
-  return request.response;
+Future<HttpContext> defaultNotFoundError(HttpContext ctx) async {
+  return ctx..send(status: HttpStatus.notFound);
 }
 
 /// Default error handler
-Future<HttpResponse> defaultErrorHandler(HttpRequest request, Exception _error) async {
-  request.response.statusCode = HttpStatus.internalServerError;
-  request.response.contentLength = 0;
-
-  await request.response.flush();
-  // await request.response.close();
-
-  return request.response;
+Future<HttpContext> defaultErrorHandler(HttpContext ctx, error) async {
+  return ctx..sendText(error.toString(), status: HttpStatus.internalServerError);
 }
 
 /// Default unknown method handler for the router
-Future<HttpResponse> defaultUnknownMethodHandler(HttpRequest request, List<String> knownMethods) async {
-  request.response.headers.add("Accept", knownMethods.join(", "));
-  request.response.statusCode = HttpStatus.methodNotAllowed;
-  request.response.contentLength = 0;
-
-  await request.response.flush();
-  // await request.response.close();
-
-  return request.response;
+Future<HttpContext> defaultUnknownMethodHandler(HttpContext ctx, List<String> knownMethods) async {
+  return ctx..head(HttpStatus.methodNotAllowed, "text/plain", { HttpHeaders.acceptHeader: knownMethods.join(", ") })..send();
+  // return ctx..headers.add(HttpHeaders.acceptHeader, knownMethods.join(", "))
+  // ..send(status: HttpStatus.methodNotAllowed);
 }
 
 final RegExp methodRegex = RegExp("(?<=^(?:${httpMethods.join("|")}))@");
@@ -67,61 +51,62 @@ RequestHandler router(Routes routes, {
   ErrorHandler error = defaultErrorHandler,
   UnknownMethodHandler unknwonMethod = defaultUnknownMethodHandler
   }) {
-    Map<String, Map<String, MatchHandler>> internalRoutes = {};
+  Map<String, Map<String, MatchHandler>> internalRoutes = {};
 
-    // Creating entries
-    for (var routeEntry in routes.entries) {
-      String route = routeEntry.key;
-      MatchHandler handler = routeEntry.value;
+  // Creating entries
+  for (var routeEntry in routes.entries) {
+    String route = routeEntry.key;
+    MatchHandler handler = routeEntry.value;
 
-      List<String> methodEntry = route.split(methodRegex);
-      String methodOrPath = methodEntry.first;
-      String path = methodEntry.last;
+    List<String> methodEntry = route.split(methodRegex);
+    String methodOrPath = methodEntry.first;
+    String path = methodEntry.last;
 
-      // TODO(TASnomad): we should remove the assert operator when acessing map fields
-      if (httpMethods.contains(path) || httpMethods.contains(methodOrPath)) {
-        internalRoutes[path] = {};
-        internalRoutes[path]![methodOrPath] = handler;
-      } else {
-        internalRoutes[methodOrPath] = {};
-        internalRoutes[methodOrPath]!["any"] = handler;
-      }
+    // TODO(TASnomad): we should remove the assert operator when acessing map fields
+    if (httpMethods.contains(path) || httpMethods.contains(methodOrPath)) {
+      internalRoutes[path] = {};
+      internalRoutes[path]![methodOrPath] = handler;
+    } else {
+      internalRoutes[methodOrPath] = {};
+      internalRoutes[methodOrPath]!["any"] = handler;
     }
+  }
 
-    Future<HttpResponse> mainRouterHandler(HttpRequest req) {
-      try {
-        for (var internalRouteEntry in internalRoutes.entries) {
-          String path = internalRouteEntry.key;
-          var methods = internalRouteEntry.value;
+  Future<HttpContext> mainRouterHandler(HttpContext ctx) {
+    try {
+      for (var internalRouteEntry in internalRoutes.entries) {
+        String path = internalRouteEntry.key;
+        var methods = internalRouteEntry.value;
 
-          var pattern = UrlPattern(path);
-          bool patternRes = pattern.matches(req.uri.toString());
+        if (routeMatches(path, ctx.uri.toString())) {
+          for (var methodEntry in methods.entries) {
+            String method = methodEntry.key;
+            MatchHandler handler = methodEntry.value;
+            var params = pathMatcher(path, ctx.uri.toString()) ?? {};
 
-          if (patternRes) {
-            for (var methodEntry in methods.entries) {
-              String method = methodEntry.key;
-              MatchHandler handler = methodEntry.value;
-              List<String> res = pattern.parse(req.uri.toString());
-
-              if (req.method == method) {
-                Map<String, String> groups = { for (var v in res) v[0] : v[1] };
-                return handler(req, groups);
-              }
-
-              if (methods.containsKey("any")) {
-                Map<String, String> groups = { for (var v in res) v[0] : v[1] };
-                return methods["any"]!(req, groups);
-              } else {
-                return unknwonMethod(req, methods.keys.toList());
-              }
+            if (ctx.method == method) {
+              return handler(ctx, params);
             }
+            return methods.containsKey("any")
+                ? methods["any"]!(ctx, params)
+                : unknwonMethod(ctx, methods.keys.toList());
           }
         }
       }
-      on Exception catch(e) {
-        return error(req, e);
-      }
-      return other(req);
+    } on Exception catch (e) {
+      return error(ctx, e);
     }
-    return mainRouterHandler;
+    return other(ctx);
   }
+
+  return mainRouterHandler;
+}
+
+Future<dynamic> stator(HttpRequest req, RequestHandler fct) async {
+  HttpContext ctx = HttpContext(req, req.response);
+  HttpContext res = await fct(ctx);
+
+  if (!res.closed) {
+    await res.end();
+  }
+}
