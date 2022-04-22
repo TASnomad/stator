@@ -1,8 +1,7 @@
-import 'dart:async';
+import "dart:async";
 import "dart:io";
 
-import 'package:stator/src/http_context.dart';
-import 'package:stator/stator.dart';
+import "package:stator/stator.dart";
 
 final List<String> httpMethods = const [
   "HEAD",
