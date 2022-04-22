@@ -4,14 +4,18 @@ import "dart:io";
 import "package:stator/stator.dart";
 
 Future<HttpContext> test(HttpContext ctx, Map<String, String> params) async {
-  return ctx..sendJson({ "test": "hello" });
+  return ctx..sendJson({"test": "hello"});
 }
 
-Future<HttpContext> testEcho(HttpContext ctx, Map<String, String> params) async {
+Future<HttpContext> testEcho(
+    HttpContext ctx, Map<String, String> params) async {
   if (!params.containsKey("echo")) {
-    return ctx..send(value: { "error": "Missing echo parameter" }, status: HttpStatus.badRequest);
+    return ctx
+      ..send(
+          value: {"error": "Missing echo parameter"},
+          status: HttpStatus.badRequest);
   }
-  return ctx..sendJson({ "value": params["echo"] });
+  return ctx..sendJson({"value": params["echo"]});
 }
 
 Future<void> main() async {
@@ -24,7 +28,7 @@ Future<void> main() async {
     await server.close();
   }));
 
-   RequestHandler engine = router({
+  RequestHandler engine = router({
     "GET@/": test,
     "GET@/hello/:echo": testEcho,
   });

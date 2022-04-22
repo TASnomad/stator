@@ -36,14 +36,20 @@ class ContentTypes {
     return _extensionsMap;
   }
 
-  static final List<String> binaryContentTypes = [ "image/jpeg", "image/gif", "image/png", "application/octet" ];
+  static final List<String> binaryContentTypes = [
+    "image/jpeg",
+    "image/gif",
+    "image/png",
+    "application/octet"
+  ];
 
   static bool matches(String contentType, String withContentType) =>
-    contentType.length > withContentType.length
-      ? withContentType.startsWith(contentType)
-      : contentType.startsWith(withContentType);
+      contentType.length > withContentType.length
+          ? withContentType.startsWith(contentType)
+          : contentType.startsWith(withContentType);
 
-  static bool isBinary(String contentType) => binaryContentTypes.contains(contentType);
+  static bool isBinary(String contentType) =>
+      binaryContentTypes.contains(contentType);
 
   static bool isJson(String contentType) => matches(contentType, json);
 }
