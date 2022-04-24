@@ -103,7 +103,15 @@ class Stator {
   }
 
   /// Minimal HTTP server entrypoint which can used with your HTTP server StreamSubscription
-  /// Such as `await server.forEach((req) => Stator.run(req, router({})));`
+  /// ### Minimal Example:
+  /// ```dart
+  /// var entryPoint = Stator.compile([
+  ///   StatorRouter(routes: {
+  ///     "GET@/": (ctx, _) => Future(() => ctx..sendText("hello", status: 200)),
+  ///   })
+  /// ]);
+  /// await (await HttpServer.bind(InternetAddress.anyIPv4, 8080)).forEach((req) => Stator.run(req, entryPoint));
+  /// ```
   static Future<dynamic> run(HttpRequest req, RequestHandler fct) async {
     HttpContext ctx = HttpContext(req, req.response);
     HttpContext res = await fct(ctx);
