@@ -15,7 +15,7 @@ void main() {
       expect(routes.entries.first.key, equals("/"), reason: "The HTTP route equals '/'");
     });
 
-    test("Compile a single router without prefix, with a valid router", () {
+    test("Compile a single router without prefix, with an invalid router", () {
       StatorRouter r = StatorRouter(routes: {
         "GET/@": (ctx, _) => Future(() => ctx),
       });
