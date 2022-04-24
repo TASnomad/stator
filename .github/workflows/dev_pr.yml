@@ -14,8 +14,8 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
-      - name: Linter
-        run: dart format --output=none --set-exit-if-changed .
+      # - name: Linter
+      #   run: dart format --output=none --set-exit-if-changed .
 
       - name: Static analyze
         run: dart analyze
