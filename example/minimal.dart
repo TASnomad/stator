@@ -7,15 +7,18 @@ Future<HttpContext> test(HttpContext ctx, Map<String, String> params) async {
   return ctx..sendJson({"test": "hello"});
 }
 
-Future<HttpContext> testEcho(
-    HttpContext ctx, Map<String, String> params) async {
+Future<HttpContext> testEcho(HttpContext ctx, Map<String, String> params) async {
   if (!params.containsKey("echo")) {
-    return ctx
-      ..send(
-          value: {"error": "Missing echo parameter"},
-          status: HttpStatus.badRequest);
+    return ctx..send(value: {"error": "Missing echo parameter"}, status: HttpStatus.badRequest);
   }
   return ctx..sendJson({"value": params["echo"]});
+}
+
+Future<HttpContext> supHandler(HttpContext ctx, Map<String, String> params) async {
+  if (!params.containsKey("sup")) {
+    return ctx..send(value: {"error": "Missing echo parameter"}, status: HttpStatus.badRequest);
+  }
+  return ctx..sendJson({"value": params["sup"]});
 }
 
 Future<void> main() async {
@@ -28,12 +31,18 @@ Future<void> main() async {
     await server.close();
   }));
 
-  RequestHandler engine = router({
+  StatorRouter rootRouter = StatorRouter(routes: {
     "GET@/": test,
-    "GET@/hello/:echo": testEcho,
+    "GET@/:echo": testEcho,
   });
+
+  StatorRouter testRouter = StatorRouter(prefix: "/test", routes: {
+    "GET@/:sup": supHandler,
+  });
+
+  RequestHandler entryPoint = Stator.compile([rootRouter, testRouter]);
 
   print("Server running on port ${server.port}");
 
-  await server.forEach((req) => stator(req, engine));
+  await server.forEach((req) => Stator.run(req, entryPoint));
 }

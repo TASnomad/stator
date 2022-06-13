@@ -7,13 +7,9 @@ Future<HttpContext> test(HttpContext ctx, Map<String, String> params) async {
   return ctx..sendJson({"test": "hello"});
 }
 
-Future<HttpContext> testEcho(
-    HttpContext ctx, Map<String, String> params) async {
+Future<HttpContext> testEcho(HttpContext ctx, Map<String, String> params) async {
   if (!params.containsKey("echo")) {
-    return ctx
-      ..send(
-          value: {"error": "Missing echo parameter"},
-          status: HttpStatus.badRequest);
+    return ctx..send(value: {"error": "Missing echo parameter"}, status: HttpStatus.badRequest);
   }
   return ctx..sendJson({"value": params["echo"]});
 }
@@ -28,10 +24,12 @@ Future<void> main() async {
     await server.close();
   }));
 
-  RequestHandler engine = router({
+  StatorRouter routes = StatorRouter(routes: {
     "GET@/": test,
     "GET@/hello/:echo": testEcho,
   });
+
+  RequestHandler engine = Stator.compile([routes]);
 
   print("Server running on port ${server.port}");
 
