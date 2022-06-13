@@ -1,9 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
+import "dart:async";
+import "dart:convert";
+import "dart:io";
+import "dart:typed_data";
 
-import 'package:stator/src/content_types.dart';
+import "package:stator/stator.dart";
 
 class HttpContext extends Stream<Uint8List> implements HttpRequest {
   HttpRequest req;
@@ -16,18 +16,13 @@ class HttpContext extends Stream<Uint8List> implements HttpRequest {
 
   HttpContext(this.req, this.res) {
     _params.addAll(req.uri.queryParameters);
-    _contentType = req.headers[HttpHeaders.contentTypeHeader] != null
-        ? req.headers[HttpHeaders.contentTypeHeader]![0]
-        : null;
+    _contentType = req.headers[HttpHeaders.contentTypeHeader] != null ? req.headers[HttpHeaders.contentTypeHeader]![0] : null;
     res.done.then((_) => _closed = true, onError: (_) => _closed = true);
   }
 
   bool get closed => _closed;
   String? get contentType =>
-      _contentType ??
-      (req.headers[HttpHeaders.contentTypeHeader] != null
-          ? req.headers[HttpHeaders.contentTypeHeader]![0]
-          : null);
+      _contentType ?? (req.headers[HttpHeaders.contentTypeHeader] != null ? req.headers[HttpHeaders.contentTypeHeader]![0] : null);
 
   String get responseContentType => _contentTypeOnly ?? "";
 
@@ -53,21 +48,16 @@ class HttpContext extends Stream<Uint8List> implements HttpRequest {
     Completer<String> ret = Completer();
     StringBuffer buf = StringBuffer();
 
-    req
-        .map<List<int>>((event) => event.toList())
-        .transform(encoding.decoder)
-        .listen(buf.write)
+    req.map<List<int>>((event) => event.toList()).transform(encoding.decoder).listen(buf.write)
       ..onError(ret.completeError)
       ..onDone(() => ret.complete(buf.toString()));
     return ret.future;
   }
 
-  Future<Object> readAsJson({Encoding encoding = utf8}) =>
-      readAsText(encoding).then((raw) => json.decode(raw));
+  Future<Object> readAsJson({Encoding encoding = utf8}) => readAsText(encoding).then((raw) => json.decode(raw));
 
   Future<Object> readAsObject({Encoding encoding = utf8}) =>
-      readAsText(encoding).then((txt) =>
-          contentType == ContentType.json.mimeType ? json.encode(txt) : txt);
+      readAsText(encoding).then((txt) => contentType == ContentType.json.mimeType ? json.encode(txt) : txt);
 
   // ignore: avoid_returning_this
   void write(Object value, {String? contentType}) {
@@ -75,11 +65,14 @@ class HttpContext extends Stream<Uint8List> implements HttpRequest {
 
     switch (_contentTypeOnly) {
       case ContentTypes.json:
-        res.write(json.encode(value));
+        String raw = json.encode(value);
+        res.headers.add(HttpHeaders.contentLengthHeader, raw.length);
+        res.write(raw);
         break;
       default:
-        bool isBin =
-            value is List<int> || ContentTypes.isBinary(_contentTypeOnly!);
+        bool isBin = value is List<int> || ContentTypes.isBinary(_contentTypeOnly!);
+        int len = value is List<int> ? value.length : value.toString().length;
+        res.headers.add(HttpHeaders.contentLengthHeader, len);
         res.write(isBin ? value : value.toString());
         break;
     }
@@ -116,11 +109,9 @@ class HttpContext extends Stream<Uint8List> implements HttpRequest {
     end();
   }
 
-  void sendJson(Object value, {int? status}) =>
-      send(value: value, contentType: ContentTypes.json, status: status);
+  void sendJson(Object value, {int? status}) => send(value: value, contentType: ContentTypes.json, status: status);
 
-  void sendText(Object value, {int? status}) =>
-      send(value: value, contentType: ContentTypes.text, status: status);
+  void sendText(Object value, {int? status}) => send(value: value, contentType: ContentTypes.text, status: status);
 
   void sendBytes(List<int> bytes, {int? status, String? contentType}) {
     head(status, contentType);
@@ -137,10 +128,8 @@ class HttpContext extends Stream<Uint8List> implements HttpRequest {
   }
 
   @override
-  StreamSubscription<Uint8List> listen(void Function(Uint8List)? onData,
-      {Function? onError, void Function()? onDone, bool? cancelOnError}) {
-    return req.listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+  StreamSubscription<Uint8List> listen(void Function(Uint8List)? onData, {Function? onError, void Function()? onDone, bool? cancelOnError}) {
+    return req.listen(onData, onError: onError, onDone: onDone, cancelOnError: cancelOnError);
   }
 
   // HttpRequest overrides
